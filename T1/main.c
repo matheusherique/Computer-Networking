@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <netdb.h>
 #include <time.h>
 #include <string.h>
+#include <arpa/inet.h>
+
+#define PORT 123
 
 typedef struct {
 
@@ -34,14 +38,32 @@ typedef struct {
 
 int main(int argc, const char* argv[]) {
 
-    // Set all values to 0 and set the first string byte to 0x1b
-    ntp_packet packet = {};
-    memset(&packet, 0, sizeof(ntp_packet));
-    *((char *)&packet + 0) = 0x1b;
+  int socket_udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-    time_t datetime = time(NULL);
-    struct tm *tm = localtime(&datetime);
-    printf("%s", asctime(tm));
+  struct sockaddr_in server_address;
+  struct in_addr address;
+  struct hostent *host;
 
-    return 0;
+  // Set all values to 0 and set the first string byte to 0x1b
+  ntp_packet packet = {};
+  memset(&packet, 0, sizeof(ntp_packet));
+  *((char *)&packet + 0) = 0x1b;
+
+  time_t datetime = time(NULL);
+  struct tm *tm = localtime(&datetime);
+
+  printf("%s\n", asctime(tm));
+
+  inet_aton(argv[1], &address);
+  host = gethostbyaddr(&address, sizeof(address), AF_INET);
+  printf("%s\n", host->h_addr);
+
+  bzero((char*) &server_address, sizeof(server_address));
+  server_address.sin_family = AF_INET;
+
+  bcopy((char*)host->h_addr, (char*) &server_address.sin_addr.s_addr, host->h_length);
+
+  server_address.sin_port = htons(PORT);
+
+  return 0;
 }

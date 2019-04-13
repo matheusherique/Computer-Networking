@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <time.h>
+#include <assert.h>
 #include <string.h>
 
 typedef struct {
@@ -38,5 +40,11 @@ int main(int argc, const char* argv[]) {
     memset(&packet, 0, sizeof(ntp_packet));
     *((char *)&packet + 0) = 0x1b;
 
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    char datetime[64];
+    assert(strftime(datetime, sizeof(datetime), "%c", tm));
+    printf("%s\n", datetime);
+    
     return 0;
 }

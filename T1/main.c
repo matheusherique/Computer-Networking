@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 typedef struct {
@@ -30,6 +32,11 @@ typedef struct {
 } ntp_packet;              // Total: 384 bits or 48 bytes.
 
 int main(int argc, const char* argv[]) {
+
+    // Set all values to 0 and set the first string byte to 0x1b
+    ntp_packet packet = {};
+    memset(&packet, 0, sizeof(ntp_packet));
+    *((char *)&packet + 0) = 0x1b;
 
     return 0;
 }

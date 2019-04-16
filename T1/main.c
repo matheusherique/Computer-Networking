@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #define PORT 123
 #define NTP_EPOCH_TIMESTAMP 2208988800UL
@@ -46,7 +47,8 @@ int main(int argc, const char* argv[]) {
   }
 
   int socket_udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP), recvlen;
-
+  int try = 0;
+  bool succeed, failed;
   struct sockaddr_in server_address;
   struct in_addr address;
   struct hostent *host;
@@ -73,12 +75,6 @@ int main(int argc, const char* argv[]) {
 
   server_address.sin_port = htons(PORT);
 
-  // recvlen = connect(socket_udp, (struct sockaddr *) &server_address, sizeof(server_address));
-  // if (recvlen < 0) {
-  //   perror("Error to connect socket UDP");
-  //   close(socket_udp);
-  //   return 0;
-  // }
   recvlen = sendto(socket_udp, &packet, sizeof packet, 0, (struct sockaddr *) &server_address, sizeof(server_address));
   if (recvlen != sizeof packet) {
     perror("Error to send socket UDP");
@@ -86,32 +82,26 @@ int main(int argc, const char* argv[]) {
     return 0;
   }
 
-  setsockopt(socket_udp,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval));
-  recvlen = recvfrom(socket_udp, &packet, sizeof packet, 0, NULL, NULL);
-  if (recvlen >= 0) {
-    //Message Received
-    packet.txTm_s = ntohl(packet.txTm_s); 
-    packet.txTm_f = ntohl(packet.txTm_f);
-    time_t datetime = (time_t) (packet.txTm_s - NTP_EPOCH_TIMESTAMP);
-    struct tm *tm = localtime(&datetime);
-    printf("Data/hora: %s\n", asctime(tm));
-  }
-  else{
-    //Message Receive Timeout or other error
-    printf("Trying again...\n");
+  while(!failed && !succeed){
     setsockopt(socket_udp,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval));
-    //recvlen = recvfrom(socket_udp, &packet, sizeof packet, 0, NULL, NULL);
-    if(recvlen < 0){
-      perror("Data/hora: não foi possível contactar servidor\n");
-      close(socket_udp);
-      return 0;
-    } else {
+    recvlen = recvfrom(socket_udp, &packet, sizeof packet, 0, NULL, NULL);
+    if (recvlen >= 0) {
       //Message Received
       packet.txTm_s = ntohl(packet.txTm_s); 
       packet.txTm_f = ntohl(packet.txTm_f);
       time_t datetime = (time_t) (packet.txTm_s - NTP_EPOCH_TIMESTAMP);
       struct tm *tm = localtime(&datetime);
       printf("Data/hora: %s\n", asctime(tm));
+      succeed = true;
+
+    } else if (try == 2) {
+      perror("Data/hora: não foi possível contactar servidor\n");
+      close(socket_udp);
+      failed = true;
+    } else {
+      //Message Receive Timeout or other error
+      printf("Trying again...\n");
+      try++;
     }
   }
 

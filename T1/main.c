@@ -50,7 +50,7 @@ int main(int argc, const char* argv[]) {
   int try = 0;
   bool succeed, failed;
   struct sockaddr_in server_address;
-  struct in_addr address;
+  struct in_addr host_address;
   struct hostent *host;
   struct timeval timeout={20,0};
 
@@ -62,28 +62,39 @@ int main(int argc, const char* argv[]) {
   // Set all values to 0 and set the first string byte to 0x1b
   ntp_packet packet = {};
   memset(&packet, 0, sizeof(ntp_packet));
+
+  //                                           li   vn  mode
+  // Set li = 0, vn = 3, and mode = 3 (0x1b = [00][011][011])
   *((char *)&packet + 0) = 0x1b;
-  packet.origTm_s = htonl(time(0) + NTP_EPOCH_TIMESTAMP);
 
-  inet_aton(argv[1], &address);
-  host = gethostbyaddr(&address, sizeof(address), AF_INET);
+  // Get host IP from command line
+  inet_aton(argv[1], &host_address);
+  host = gethostbyaddr(&host_address, sizeof(host_address), AF_INET);
 
+  // Erase the data in the all server_address bytes
   bzero((char*) &server_address, sizeof(server_address));
+  // Add IPv4 for the address family
   server_address.sin_family = AF_INET;
 
+  // Copy host address to server_address
   bcopy((char*)host->h_addr, (char*) &server_address.sin_addr.s_addr, host->h_length);
 
+  // Add the socket port
   server_address.sin_port = htons(PORT);
 
-  recvlen = sendto(socket_udp, &packet, sizeof packet, 0, (struct sockaddr *) &server_address, sizeof(server_address));
-  if (recvlen != sizeof packet) {
-    perror("Error to send socket UDP");
-    close(socket_udp);
-    return 0;
-  }
-
   while(!failed && !succeed){
+    // Call up the server and send it the NTP packet 
+    recvlen = sendto(socket_udp, &packet, sizeof packet, 0, (struct sockaddr *) &server_address, sizeof(server_address));
+    if (recvlen != sizeof packet) {
+      perror("Error to send socket UDP");
+      close(socket_udp);
+      return 0;
+    }
+
+    // Wait the server reply
     setsockopt(socket_udp,SOL_SOCKET,SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval));
+
+    // Receive the packet back from the server
     recvlen = recvfrom(socket_udp, &packet, sizeof packet, 0, NULL, NULL);
     if (recvlen >= 0) {
       //Message Received
@@ -94,7 +105,7 @@ int main(int argc, const char* argv[]) {
       printf("Data/hora: %s\n", asctime(tm));
       succeed = true;
 
-    } else if (try == 2) {
+    } else if (try == 1) {
       perror("Data/hora: não foi possível contactar servidor\n");
       close(socket_udp);
       failed = true;

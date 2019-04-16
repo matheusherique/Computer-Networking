@@ -42,7 +42,7 @@ typedef struct {
 
 int main(int argc, const char* argv[]) {
   if (argv[1] == NULL){
-    perror("You need to put the host IP:\n\n./main [Host IP]\n\n");
+    perror("You need to put the host IP address:\n\n./main [Host IP address]\n\n");
     return 0;
   }
 
